@@ -2,48 +2,80 @@
 
 #define  MICRO   1000
 
-void eventA(argument* argc){
+void eventA(eventContext_t this, argument_t argc){
   printf("event A: Hello World!\n");
-  printf("%s %zu \n",argc->data, argc->dataSize * 2);
+  printf("%s\n", (char*)argc->data);
+  strcpy((char*) argc->data, "New string XD");
+  printf("%s\n", (char*)argc->data);
+
 }
 
-void eventB(argument* argc){
-  printf("event B: some data:\n");
-  printf("%zu %f \n", *((size_t*) argc->data), *((float*) argc->data));
+void eventB(eventContext_t this, argument_t argc){
+  printf("event B: Hello World!\n");
+  size_t len = argc->length + 1;
+  char buffer[len];
+  strcpy(buffer,argc->data);
+  printf("%s\n", buffer);
 }
 
-void eventC(argument* argc){
-  printf("event C: All prints are occuring in the events\n");
-  argc->dataSize = 1200;
-  memcpy(argc->data,"sample string",20);
+void eventC(eventContext_t this, argument_t argc) {
+  printf("Here sir in eventC\n");
+  while ( this->running == 1 ) {
+    printf("Loop\n");
+    usleep(50*1000);
+  }
 }
 
-void eventD(argument* argc){
-  printf("event D: <something>\n");
+void eventD(eventContext_t this, argument_t argc) {
+  size_t** increment = (size_t**) argc->data;
+  size_t*  val = *increment;
+  while (this->running == 1) {
+    usleep(50*1000);
+    printf("%zu\n", *val);
+    if( *val == 20 ) {
+      printf("Increment == 20\n");
+    }
+  }
 }
 
 int main(void) {
-  setupEvents();
-  float f = 539823.1;
 
-  argument myArg = buildArg("This is an Event",sizeof(char),20);
-  argument arg2  = buildArg(&f,sizeof(float),1);
+  char* str = "Here is a string";
+  argument_t argA = event_buildArgument((void*) str , strlen(str) + 1 , sizeof(char) );
+  size_t increment = 0;
+  size_t* incPtr = &increment;
 
-  onEvent(200,&eventA);
-  onEvent(1,&eventB);
-  onEvent(100,&eventC);
-  trigger(200,&myArg);
-  trigger(1,&arg2);
-  trigger(100,&myArg);
-  onEvent(2,&eventD);
-  trigger(2,&myArg);
+  argument_t arg  = event_buildArgument(&incPtr, 1, sizeof(size_t*));
 
-  usleep(500*1000);
-  closeEvents();
+  event_installDriver();
 
-  usleep(500*1000);
+  event_onEvent(0, eventA);
+  event_onEvent(1, eventB);
+  event_onEvent(2, eventC);
+  event_onEvent(3, eventD);
 
-  deleteArg(&myArg);
-  deleteArg(&arg2);
+  event_pause();
+
+  event_trigger(0, 10,  argA);
+  event_trigger(1, 12,  argA);
+  event_trigger(2, 200, argA);
+  event_trigger(3, 200, arg);
+
+  event_resume();
+
+  sleep(1);
+
+  for (size_t i = 0; i < 30; i++) {
+    increment++;
+    usleep(50*1000);
+  }
+
+  sleep(1);
+
+  event_deinstallDriver();
+
+  event_destroyArgument(argA);
+  event_destroyArgument(arg);
+
   return 0;
 }

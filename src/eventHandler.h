@@ -1,93 +1,67 @@
 #ifndef EVENTHANLDER_HEADER
 #define EVENTHANLDER_HEADER
 
+/****************************** - Library Includes - *******************************/
+/******************************** - User Includes - ********************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 //We need the event loop to run in a separte thread so we can do stuff while it is running
 #include <pthread.h>
 #include <unistd.h>
+/*********************************** - Defines - ***********************************/
 
-void* doNothing(void *p);
+#define EVENT_MAX_PRIORITY (-1)
 
-typedef struct _arguements {
-  size_t  dataSize;
-  size_t  length;
-  void*   data;
-}argument;
+/************************************ - Enums - ************************************/
+/********************************** - Typedefs - ***********************************/
+/********************************* - Structures - **********************************/
 
-typedef struct _handlerCase {
-  size_t            id;
-  void              (*funct)(argument*);//our function pointer
-}handlerCase;
+typedef union _eventFlags {
+  unsigned char group : 8;
+  struct {
+    unsigned char installed : 1;
+    unsigned char paused    : 1;
+    unsigned char quit      : 1;
+    unsigned char running   : 1;
+    unsigned char bit4      : 1;
+    unsigned char bit5      : 1;
+    unsigned char bit6      : 1;
+    unsigned char bit7      : 1;
+  };
+}eventFlags_t;
 
-typedef struct _eventCase {
-  size_t            id;
-  argument*        arg;
-}eventCase;
+typedef eventFlags_t* eventContext_t;
 
-typedef struct _event {
-  eventCase*    container;
-  //Number of elements in the event queue
-  size_t        length;
-  unsigned char pause;
-  unsigned char nQuit;
-}event;
+typedef struct _arguments {
+  size_t          dataSize;
+  size_t          length;
+  pthread_mutex_t mutex;
+  void*           data;
+}internal_argument;
 
-typedef struct _handler {
-  handlerCase* container;
-  //Number of elements in the event queue
-  size_t       length;
-}handler;
+typedef internal_argument* argument_t;
 
-argument       nullArg;
-//Define the polls and listener lists
-event           poll;
-handler         listener;
-//Define the thread in which the event loop occurs in
-pthread_t       eventThread;
-//Define the mutex for the thread to prevent undefined behaviour.
+/*Functions that the event runs*/
+typedef void (*eventHandle_t)(eventContext_t this, argument_t arg);
 
-void deleteArg(argument* inArg);
-argument buildArg(void* inData ,size_t inSize, size_t inElements);
+/**************************** - Function Prototypes - ******************************/
 
-//Functions used to handler events
+argument_t event_buildArgument(void* data, size_t numberOfElements, size_t sizeOfData);
+void       event_destroyArgument(argument_t toDelete);
 
-//Start the event handler
-void setupEvents();
-//Stop the event handler
-void closeEvents();
-//Define a new event for the event handler to handle
-void onEvent(size_t id, void* func);
-//Trigger the event that has the corresponding id with the passed arguements
-void trigger(size_t id, argument* argc);
+bool       event_installDriver();
+bool       event_deinstallDriver();
 
+bool       event_onEvent(size_t id, eventHandle_t event);
+bool       event_trigger(size_t id, size_t priority, argument_t arg);
 
-// function protoypes
-// Internal Functions not to be used else where.
-void e_pushBack(event* e, size_t inId, argument* inArg);
-void h_pushBack(handler* h, size_t inId, void* inFunct);
+bool       event_isHandleInstalled();
 
-void e_popBack(event* e);
-void h_popBack(handler* h);
+void       event_pause();
+void       event_resume();
 
-void e_popForward(event* e);
-
-void addEventToPoll(event e);
-void addHandlerToListener(handler h);
-void processEvent();
-void startEventLoop();
-
-//End the event Loop
-void quitEvents();
-//Pause the event queue
-void pauseEvents();
-//Continue the event queue
-void resumeEvents();
-
-//
-//
-//
-//
+/****************************** - Global Variables - *******************************/
 
 #endif
